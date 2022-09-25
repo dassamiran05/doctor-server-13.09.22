@@ -53,6 +53,20 @@ async function run() {
         const serviceCollection = database.collection("services");
         const bookingCollection = database.collection("bookings");
         const userCollection = database.collection("users");
+        const doctorCollection = database.collection("doctors");
+
+
+        //verify Admin
+        const verifyAdmin = async(req, res, next) => {
+            const requesterEmail = req.decoded.email;
+            const reqAccount = await userCollection.findOne({email: requesterEmail});
+            if(reqAccount.role === 'admin'){
+                next();
+            }
+            else{
+                res.status(403).send({message: 'Forbidden'});
+            }
+        }
 
 
         //All API naming convention
@@ -60,7 +74,7 @@ async function run() {
         //get services
         app.get('/services', async (req, res) => {
             const query = {};
-            const cursor = serviceCollection.find(query);
+            const cursor = serviceCollection.find(query).project({name: 1});
             const services = await cursor.toArray();
             res.send(services);
         })
@@ -172,6 +186,31 @@ async function run() {
                 result
             });
 
+        })
+
+        //Add doctor api
+        app.post('/doctors',verifyJWT, verifyAdmin, async(req, res) => {
+            const doctor = req.body;
+            const result = await doctorCollection.insertOne(doctor);
+            res.send(result);
+        })
+
+
+        //get all Doctors
+        app.get('/doctors', verifyJWT, verifyAdmin, async (req, res) => {
+            const query = {};
+            const cursor = doctorCollection.find(query);
+            const doctors = await cursor.toArray();
+            res.send(doctors);
+        })
+
+
+        //Delete a Doctor by filtering doctor's email
+        app.delete('/doctors/:email', verifyJWT, verifyAdmin, async (req, res) => {
+            const email = req.params.email;
+            const filter = {email: email};
+            const result = await doctorCollection.deleteOne(filter);
+            res.send(result);
         })
     } finally {
         // await client.close();
